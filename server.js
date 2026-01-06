@@ -14,32 +14,21 @@ app.post('/api/chat', async (req, res) => {
     const { prompt } = req.body;
 
     try {
-        // Tumatawag sa ChatGPT endpoint ng Kohi
         const response = await axios.get(`https://api-library-kohi.onrender.com/api/chatgpt`, {
             params: { prompt: prompt }
         });
 
-        // Ito ay lalabas sa logs ng Render para makita natin ang format
-        console.log("Kohi ChatGPT API raw response:", response.data);
+        // DEBUG LOG
+        console.log("Raw API Response:", response.data);
 
-        // Sinusubukan kunin ang text sa lahat ng posibleng formats
-        const aiMessage = 
-            response.data.result || 
-            response.data.response || 
-            response.data.content || 
-            response.data.reply ||
-            (typeof response.data === 'string' ? response.data : null);
+        // FIX: Ang sagot pala ay nasa response.data.data base sa log mo
+        const aiMessage = response.data.data || response.data.result || response.data.content || "No response found.";
 
-        if (aiMessage) {
-            res.json({ response: aiMessage });
-        } else {
-            // Kung walang mahanap na text sa JSON, ibabato ang buong data para makita natin
-            res.json({ response: "Rumesponde ang API pero hindi mahanap ang text property. Data: " + JSON.stringify(response.data) });
-        }
+        res.json({ response: aiMessage });
 
     } catch (error) {
-        console.error('Fetch Error:', error.message);
-        res.status(500).json({ response: "Hindi makakonekta sa Nova AI server. Subukan muli mamaya." });
+        console.error('Error:', error.message);
+        res.status(500).json({ response: "Connection error. Please try again." });
     }
 });
 
@@ -48,5 +37,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Nova AI is active on port ${PORT}`);
+    console.log(`Nova AI Fixed on port ${PORT}`);
 });
