@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova AI | Local Storage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: white; font-family: sans-serif; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <nav class="p-4 glass flex justify-between items-center sticky top-0">
+        <h1 class="font-bold text-xl text-purple-400">NOVA AI</h1>
+        <button onclick="clearHistory()" class="text-xs bg-red-900/50 hover:bg-red-800 px-3 py-1 rounded border border-red-500/50">Clear Chat</button>
+    </nav>
+
+    <main id="chat-box" class="flex-1 p-4 overflow-y-auto space-y-4 max-w-3xl mx-auto w-full pb-24"></main>
+
+    <form id="chat-form" class="fixed bottom-0 left-0 w-full p-4 glass">
+        <div class="max-w-3xl mx-auto flex gap-2">
+            <input type="text" id="user-input" placeholder="Type a message..." class="flex-1 bg-slate-800 p-3 rounded-lg outline-none focus:ring-2 focus:ring-purple-500">
+            <button type="submit" class="bg-purple-600 px-5 py-3 rounded-lg font-bold">SEND</button>
+        </div>
+    </form>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const chatForm = document.getElementById('chat-form');
+        const userInput = document.getElementById('user-input');
+
+        // 1. Load messages from Local Storage
+        let chatHistory = JSON.parse(localStorage.getItem('nova_chats')) || [];
+
+        function renderMessages() {
+            chatBox.innerHTML = '';
+            if(chatHistory.length === 0) {
+                appendMessage('ai', 'History is empty. Start a new conversation!', false);
+            }
+            chatHistory.forEach(msg => {
+                appendDisplay(msg.role, msg.text);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendDisplay(role, text) {
+            const div = document.createElement('div');
+            div.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+            div.innerHTML = `
+                <div class="${role === 'user' ? 'bg-purple-700' : 'bg-slate-800'} p-3 rounded-xl max-w-[85%] border border-white/5 shadow-lg">
+                    ${text}
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function appendMessage(role, text, shouldSave = true) {
+            appendDisplay(role, text);
+            if(shouldSave) {
+                chatHistory.push({ role, text });
+                localStorage.setItem('nova_chats', JSON.stringify(chatHistory));
+            }
+        }
+
+        function clearHistory() {
+            if(confirm("Burahin lahat ng chats?")) {
+                localStorage.removeItem('nova_chats');
+                chatHistory = [];
+                renderMessages();
+            }
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = userInput.value.trim();
+            if(!text) return;
+
+            appendMessage('user', text);
+            userInput.value = '';
+
+            // Thinking state
+            const loader = document.createElement('div');
+            loader.className = 'text-xs text-purple-400 animate-pulse';
+            loader.innerText = 'Nova is thinking...';
+            chatBox.appendChild(loader);
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: text })
+                });
+                const data = await res.json();
+                loader.remove();
+                appendMessage('ai', data.response);
+            } catch (err) {
+                loader.innerText = 'Error connecting to server.';
+            }
+        });
+
+        // Initial Load
+        renderMessages();
+    </script>
+</body>
+  </html>
